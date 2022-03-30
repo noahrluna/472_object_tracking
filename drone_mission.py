@@ -42,14 +42,16 @@ REQUIRED_SIGHT_COUNT = 1  # must get 60 target sightings in a row to be sure of 
 # TODO: you must determine your own minimum for color range by
 #    analyzing your target's color.
 #  0,0,0 will not work very well for you.
-COLOR_RANGE_MIN = (0, 0, 0)
+COLOR_RANGE_MIN_1 = np.array([0, 100, 20])
+COLOR_RANGE_MIN_2 = np.array([160, 100, 20])
 
 # Max HSV values
 # TODO: you must determine your own maximum for color range by
 #    analyzing your target's color.
 #  0,0,0 will not work very well for you.
 #  See comments in check_for_initial_target() related to basic thresholding on a range of HSV
-COLOR_RANGE_MAX = (0, 0, 0)
+COLOR_RANGE_MAX_1 = np.array([10, 255, 255])
+COLOR_RANGE_MAX_2 = np.array([179, 255, 255])
 
 # Smallest object radius to consider (in pixels)
 MIN_OBJ_RADIUS = 10
@@ -144,6 +146,7 @@ def check_for_initial_target():
 
     # get current frame from the camera
     frame = get_cur_frame()
+    cv2.imshow("Frame", frame)
 
     # Apply a Gaussian blur; this is a widely used effect in computer vision,
     # typically to reduce image noise and (slightly) reduce hard lines.
@@ -151,7 +154,8 @@ def check_for_initial_target():
     # https://opencv24-python-tutorials.readthedocs.io/en/stable/py_tutorials/py_imgproc/py_filtering/py_filtering.html
 
     # TODO: YOU COMPLETE the line of code below:
-    # blurred = cv.
+    blurred = cv2.GaussianBlur(frame, (5, 5), 0)
+    cv2.imshow("Gauss", blurred)
 
     # Get hue, saturation, value.
     # Hue, saturation, and value are the main color properties that
@@ -167,17 +171,21 @@ def check_for_initial_target():
     # Go here to learn more: https://www.geeksforgeeks.org/python-opencv-cv2-cvtcolor-method/
 
     # TODO: YOU COMPLETE the line of code below:
-    # hsv = cv2.cvtColor
+    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    cv2.imshow("HSV", hsv)
 
     # Perform basic thresholding on a range of HSV.
     # This page explains the details: https://docs.opencv.org/master/da/d97/tutorial_threshold_inRange.html
-    # This site offers more insight for thesholding HSV: https://blog.socratesk.com/blog/2018/08/16/opencv-hsv-selector
+    # This site offers more insight for thresholding HSV: https://blog.socratesk.com/blog/2018/08/16/opencv-hsv-selector
     # USAGE: threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
     # Use wide range to account for variations of light, dirt, and surface imperfections...
     # especially as the drone gets closer to the target on approach.
 
     # TODO: YOU COMPLETE the line of code below:
-    # color_threshold = cv2.inRange
+    color_threshold1 = cv2.inRange(hsv, COLOR_RANGE_MIN_1, COLOR_RANGE_MAX_1)
+    color_threshold2 = cv2.inRange(hsv, COLOR_RANGE_MIN_2, COLOR_RANGE_MAX_2)
+    color_threshold = color_threshold1 + color_threshold2
+    cv2.imshow("inRange", color_threshold)
 
     # Now, perform some basic morphological operations to enhance the shapes present in the image.
     # Morphological operations are a set of operations that process images based on shapes;
@@ -199,14 +207,16 @@ def check_for_initial_target():
     # with that minimal value.
 
     # TODO: YOU COMPLETE the line of code below:
-    # color_threshold =
+    color_threshold = cv2.erode(color_threshold, np.ones((5, 5)))
+    cv2.imshow("Erode", color_threshold)
 
     # Next, the dilate operation consists of convolving an image A with some kernel B,
     # which can have any shape or size, usually a square or circle.
     # The result is the "fattening" of our circle in this case.
 
     # TODO: YOU COMPLETE the line of code below:
-    # color_threshold = cv2.dilate
+    color_threshold = cv2.dilate(color_threshold, np.ones((5, 5)), iterations=1)
+    cv2.imshow("Dilate", color_threshold)
 
     # By this point we essentially have a binary image (i.e. basic black & white features)
 
@@ -219,46 +229,46 @@ def check_for_initial_target():
     # Go here for details: https://docs.opencv.org/master/d4/d73/tutorial_py_contours_begin.html
 
     # TODO: YOU COMPLETE the line of code below:
-    # found_contours = cv2.findContours(frame)
+    found_contours = cv2.findContours(color_threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # Now, we want to remove any noise (i.e. any contours like dots and other specks caused by intense light reflection)
     # and focus on the largest contour from the processed image.
     # This discussion provides more details:
     # https://stackoverflow.com/questions/55062579/opencv-how-to-clear-contour-from-noise-and-false-positives/55249329
 
-    # found_contours = imutils.grab_contours(found_contours)
+    found_contours = imutils.grab_contours(found_contours)
 
     center = None
     radius = None
     x = y = None
 
-    # if len(found_contours) > 0:
-    #     # Let's consider the contour with the largest area.
-    #     circle = max(found_contours, key=cv2.contourArea)
-    #
-    #     # Get x,y and radius of the circle that surrounds the object we're examining.
-    #     # Essentially, we want to find the circumcircle of an object
-    #     # using the function cv.minEnclosingCircle().
-    #     # The result is a circle which completely covers the object with minimum area.
-    #     # https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
-    #
-    #     # Note that this technique has a flaw in that ANY shape of sufficient area that matches
-    #     # the color we're looking for can be mistaken for our target; the enclosing
-    #     # circle is what we're looking at, even if the object we encircled wasn't a circle
-    #     # or any other specific shape
-    #     ((x, y), radius) = cv2.minEnclosingCircle(circle)
-    #
-    #     # The function cv2.moments() gives a dictionary of all moment values calculated.
-    #     # From the moments, you can extract useful data like area, centroid etc.
-    #     # See wikipedia for more info: https://en.wikipedia.org/wiki/Image_moment
-    #     middle = cv2.moments(circle)
-    #
-    #     # To get center:
-    #     #   cx = int(M['m10'] / M['m00'])
-    #     #   cy = int(M['m01'] / M['m00'])
-    #
-    #     # TODO: YOU COMPLETE the code below:
-    #     # center =
+    if len(found_contours) > 0:
+        # Let's consider the contour with the largest area.
+        circle = max(found_contours, key=cv2.contourArea)
+
+        # Get x,y and radius of the circle that surrounds the object we're examining.
+        # Essentially, we want to find the circumcircle of an object
+        # using the function cv.minEnclosingCircle().
+        # The result is a circle which completely covers the object with minimum area.
+        # https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
+
+        # Note that this technique has a flaw in that ANY shape of sufficient area that matches
+        # the color we're looking for can be mistaken for our target; the enclosing
+        # circle is what we're looking at, even if the object we encircled wasn't a circle
+        # or any other specific shape
+        ((x, y), radius) = cv2.minEnclosingCircle(circle)
+
+        # The function cv2.moments() gives a dictionary of all moment values calculated.
+        # From the moments, you can extract useful data like area, centroid etc.
+        # See wikipedia for more info: https://en.wikipedia.org/wiki/Image_moment
+        M = cv2.moments(circle)
+
+        # To get center:
+        cx = int(M['m10'] / M['m00'])
+        cy = int(M['m01'] / M['m00'])
+
+        # TODO: YOU COMPLETE the code below:
+        center = (cx, cy)
 
     return center, radius, (x, y), frame
 
@@ -290,6 +300,8 @@ def determine_drone_actions(target_point, frame, target_sightings):
         #   Note that this is in pixels.
         # dx = float(target_point's x position)- frame's horizontal center
         # dy = frame's vertical center -float(target_point's y position)
+        dx = float(target_point[0]) - FRAME_HORIZONTAL_CENTER
+        dy = FRAME_VERTICAL_CENTER - float(target_point[1])
 
         logging.info(f"Anticipated change in position towards target: dx={dx}, dy={dy}")
 
@@ -387,128 +399,128 @@ def determine_drone_actions(target_point, frame, target_sightings):
                     #   2. perform yaw to face in right direction here.
 
     # Execute drone commands...
-    if mission_mode == MISSION_MODE_TARGET:
-        if drone.location.global_relative_frame.alt <= 3:
-
-            # time to land...
-            logging.info("Time to land...")
-            mission_mode = MISSION_MODE_LAND
-
-            # TODO: YOU COMPLETE the line of code below:
-            #    land the drone (don't forget to pass the log object)
-
-            cv2.putText(frame, "Landing...", (10, 400), font, 1, (255, 0, 0), 2, cv2.LINE_AA)
-            return  # Mission is over (hopefully, all is well).
-        else:
-            # Adjust position relative to target
-            if target_point is not None:
-                # Determine how big our x,y adjustments are
-                # based on how close we are to the target.
-
-                # Note: movement is in meters per second (m/s)
-
-                # You may need to spend time in this area determining
-                #   good values for descent rate
-                #   and how large your x,y movements will be.
-
-                # Note that these rates could change according
-                # to your distance to the target (i.e. your altitude).
-
-                # TODO: YOU COMPLETE the lines of code below:
-                #    Determine y_movement and x_movement
-                #    Also, determine rate of decent.
-                #    (could be fixed to .5 m/s or you could vary the rate, depending on alt)
-
-                mov_inc = 2.0  # rate for x,y movements
-                z_inc = .50  # rate to descend
-
-                if drone.location.global_relative_frame.alt <= 20:
-                    mov_inc = 0.5  # make smaller adjustments as we get closer to target
-
-                if drone.location.global_relative_frame.alt < 11:
-                    mov_inc = 0.2  # make smaller adjustments as we get closer to target
-
-                if dx < 0:  # left
-                    # do what?  negative direction...
-                    pass  # (REMOVE 'pass' when you have supplied actual code)
-                if dx > 0:  # right
-                    # do what?  positive direction...
-                    pass
-                if dy < 0:  # back
-                    # do what?  positive direction...
-                    pass
-                if dy > 0:  # forward
-                    # do what?  negative direction...
-                    pass
-                if abs(dx) < 7:  # if we are within 8 pixels, no need to make adjustment
-                    x_movement = 0.0
-                    direction1 = "Horizontal Center!"
-                if abs(dy) < 7:  # if we are within 8 pixels, no need to make adjustment
-                    y_movement = 0.0
-                    direction2 = "Vertical Center!"
-
-                # log movements...
-                logging.info("Targeting... determined changes in velocities: X: "
-                             + str(x_movement) + ", Y:"
-                             + str(y_movement) + ", Z:"
-                             + str(0.5) + ".")
-
-                cv2.putText(frame, "Targeting...", (10, 400), font, 1, (255, 0, 0), 2, cv2.LINE_AA)
-
-                # Have the drone execute movements.
-                # TODO: YOU COMPLETE the line of code below: move the drone a tiny bit towards the target's
-                #   center point by executing on x_movement and y_movement (don't forget to pass the log object).
-                #   Note that move_local expects velocities, not actual x,y,z positions
-                #   figure out line of code below to get drone to make minor adjustment to current X,Y position while descending at z_inc m/s
-
-                # drone_lib.move_local
-
-                #  Wait for maneuver to complete...
-                time.sleep(1)
-
-            else:  # We lost the target...
-
-                # NOTE: below is code that attempts to re-locate a target if it was lost.
-                #  This method is hardly the best approach, but it works
-                #  With that said, you may opt to do anything you want here to
-                #  improve upon the approach.
-
-                logging.info("Target lost.")
-
-                # Ty to recover the target by moving to the
-                # last sighting and scanning for the target again.
-                target_locate_attempts += 1
-
-                # We will only make a limited number of attempts to
-                # re-acquire the target before giving up and
-                # resuming the drone's internal mission.
-                if target_locate_attempts <= 30:
-                    logging.info("Re-acquiring target...")
-                    cv2.putText(frame, "Re-acquiring target...",
-                                (10, 400), font, 1,
-                                (255, 0, 0), 2, cv2.LINE_AA)
-
-                    # Move to point of original sighting.
-                    # TODO: YOU COMPLETE the 2 tasks below:
-                    #   1. goto point where
-                    #   the target was originally spotted (don't forget to pass the log object)
-                    #   2. perform RANDOM yaw here for a different vantage point than before
-
-                else:
-                    # if we failed to re-locate the target,
-                    # then continue on with the drone's internal mission...
-                    logging.info("Discarding previous target, continue looking for another...")
-                    mission_mode = MISSION_MODE_SEEK
-                    target_locate_attempts = 0
-                    last_obj_lon = None
-                    last_obj_lat = None
-                    last_obj_alt = None
-                    last_obj_heading = None
-
-                    # TODO: YOU ADD required line of code below:
-                    #    switch over to whatever mode you need to
-                    #    so as to resume the drone's internal mission
-                    #    (don't forget to pass the log object)
+    # if mission_mode == MISSION_MODE_TARGET:
+    #     if drone.location.global_relative_frame.alt <= 3:
+    #
+    #         # time to land...
+    #         logging.info("Time to land...")
+    #         mission_mode = MISSION_MODE_LAND
+    #
+    #         # TODO: YOU COMPLETE the line of code below:
+    #         #    land the drone (don't forget to pass the log object)
+    #
+    #         cv2.putText(frame, "Landing...", (10, 400), font, 1, (255, 0, 0), 2, cv2.LINE_AA)
+    #         return  # Mission is over (hopefully, all is well).
+    #     else:
+    #         # Adjust position relative to target
+    #         if target_point is not None:
+    #             # Determine how big our x,y adjustments are
+    #             # based on how close we are to the target.
+    #
+    #             # Note: movement is in meters per second (m/s)
+    #
+    #             # You may need to spend time in this area determining
+    #             #   good values for descent rate
+    #             #   and how large your x,y movements will be.
+    #
+    #             # Note that these rates could change according
+    #             # to your distance to the target (i.e. your altitude).
+    #
+    #             # TODO: YOU COMPLETE the lines of code below:
+    #             #    Determine y_movement and x_movement
+    #             #    Also, determine rate of decent.
+    #             #    (could be fixed to .5 m/s or you could vary the rate, depending on alt)
+    #
+    #             mov_inc = 2.0  # rate for x,y movements
+    #             z_inc = .50  # rate to descend
+    #
+    #             if drone.location.global_relative_frame.alt <= 20:
+    #                 mov_inc = 0.5  # make smaller adjustments as we get closer to target
+    #
+    #             if drone.location.global_relative_frame.alt < 11:
+    #                 mov_inc = 0.2  # make smaller adjustments as we get closer to target
+    #
+    #             if dx < 0:  # left
+    #                 # do what?  negative direction...
+    #                 pass  # (REMOVE 'pass' when you have supplied actual code)
+    #             if dx > 0:  # right
+    #                 # do what?  positive direction...
+    #                 pass
+    #             if dy < 0:  # back
+    #                 # do what?  positive direction...
+    #                 pass
+    #             if dy > 0:  # forward
+    #                 # do what?  negative direction...
+    #                 pass
+    #             if abs(dx) < 7:  # if we are within 8 pixels, no need to make adjustment
+    #                 x_movement = 0.0
+    #                 direction1 = "Horizontal Center!"
+    #             if abs(dy) < 7:  # if we are within 8 pixels, no need to make adjustment
+    #                 y_movement = 0.0
+    #                 direction2 = "Vertical Center!"
+    #
+    #             # log movements...
+    #             logging.info("Targeting... determined changes in velocities: X: "
+    #                          + str(x_movement) + ", Y:"
+    #                          + str(y_movement) + ", Z:"
+    #                          + str(0.5) + ".")
+    #
+    #             cv2.putText(frame, "Targeting...", (10, 400), font, 1, (255, 0, 0), 2, cv2.LINE_AA)
+    #
+    #             # Have the drone execute movements.
+    #             # TODO: YOU COMPLETE the line of code below: move the drone a tiny bit towards the target's
+    #             #   center point by executing on x_movement and y_movement (don't forget to pass the log object).
+    #             #   Note that move_local expects velocities, not actual x,y,z positions
+    #             #   figure out line of code below to get drone to make minor adjustment to current X,Y position while descending at z_inc m/s
+    #
+    #             # drone_lib.move_local
+    #
+    #             #  Wait for maneuver to complete...
+    #             time.sleep(1)
+    #
+    #         else:  # We lost the target...
+    #
+    #             # NOTE: below is code that attempts to re-locate a target if it was lost.
+    #             #  This method is hardly the best approach, but it works
+    #             #  With that said, you may opt to do anything you want here to
+    #             #  improve upon the approach.
+    #
+    #             logging.info("Target lost.")
+    #
+    #             # Ty to recover the target by moving to the
+    #             # last sighting and scanning for the target again.
+    #             target_locate_attempts += 1
+    #
+    #             # We will only make a limited number of attempts to
+    #             # re-acquire the target before giving up and
+    #             # resuming the drone's internal mission.
+    #             if target_locate_attempts <= 30:
+    #                 logging.info("Re-acquiring target...")
+    #                 cv2.putText(frame, "Re-acquiring target...",
+    #                             (10, 400), font, 1,
+    #                             (255, 0, 0), 2, cv2.LINE_AA)
+    #
+    #                 # Move to point of original sighting.
+    #                 # TODO: YOU COMPLETE the 2 tasks below:
+    #                 #   1. goto point where
+    #                 #   the target was originally spotted (don't forget to pass the log object)
+    #                 #   2. perform RANDOM yaw here for a different vantage point than before
+    #
+    #             else:
+    #                 # if we failed to re-locate the target,
+    #                 # then continue on with the drone's internal mission...
+    #                 logging.info("Discarding previous target, continue looking for another...")
+    #                 mission_mode = MISSION_MODE_SEEK
+    #                 target_locate_attempts = 0
+    #                 last_obj_lon = None
+    #                 last_obj_lat = None
+    #                 last_obj_alt = None
+    #                 last_obj_heading = None
+    #
+    #                 # TODO: YOU ADD required line of code below:
+    #                 #    switch over to whatever mode you need to
+    #                 #    so as to resume the drone's internal mission
+    #                 #    (don't forget to pass the log object)
 
 
 def search_for_target():
