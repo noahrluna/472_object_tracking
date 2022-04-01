@@ -396,7 +396,7 @@ def determine_drone_actions(target_point, frame, target_sightings):
                     #   2. perform yaw to face in right direction here.
                     drone_lib.goto_point(drone, last_obj_lat, last_obj_lon, drone.airspeed, last_obj_alt+5,
                                          last_obj_heading, log=log)
-                    drone_lib.condition_yaw(drone, last_obj_heading, relative=True, log=log)
+                    drone_lib.condition_yaw(drone, last_obj_heading, log=log)
 
     # Execute drone commands...
     if mission_mode == MISSION_MODE_TARGET:
