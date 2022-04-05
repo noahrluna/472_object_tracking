@@ -56,7 +56,7 @@ COLOR_RANGE_MAX_2 = np.array([179, 255, 255])
 # Smallest object radius to consider (in pixels)
 MIN_OBJ_RADIUS = 10
 
-UPDATE_RATE = 1  # How many frames do we wait to execute on.
+UPDATE_RATE = 2  # How many frames do we wait to execute on.
 
 TARGET_RADIUS_MULTI = 1.3  # 1.3 x the radius of the target is considered a "good" landing if drone is inside of it.
 
@@ -394,8 +394,8 @@ def determine_drone_actions(target_point, frame, target_sightings):
                     #   hint: last_obj_lat, last_obj_lon, drone.airspeed, last_obj_alt+5, last_obj_heading
                     #   1. move to point here
                     #   2. perform yaw to face in right direction here.
-                    drone_lib.goto_point(drone, last_obj_lat, last_obj_lon, drone.airspeed, last_obj_alt+5,
-                                         last_obj_heading, log=log)
+                    drone_lib.goto_point(drone, last_obj_lat, last_obj_lon, drone.airspeed, last_obj_alt + 5,
+                                         log=log)
                     drone_lib.condition_yaw(drone, last_obj_heading, log=log)
 
     # Execute drone commands...
@@ -432,27 +432,33 @@ def determine_drone_actions(target_point, frame, target_sightings):
                 #    Also, determine rate of decent.
                 #    (could be fixed to .5 m/s or you could vary the rate, depending on alt)
 
-                mov_inc = 2.0  # rate for x,y movements
-                z_inc = .50  # rate to descend
+                mov_inc = 1.0  # rate for x,y movements
+                z_inc = 0.5  # rate to descend
+                duration = 1
 
                 if drone.location.global_relative_frame.alt <= 20:
-                    mov_inc = 0.5  # make smaller adjustments as we get closer to target
+                    mov_inc = 0.5     # make smaller adjustments as we get closer to target
 
-                if drone.location.global_relative_frame.alt < 11:
-                    mov_inc = 0.2  # make smaller adjustments as we get closer to target
+                if drone.location.global_relative_frame.alt <= 15:
+                    mov_inc = 0.15
+                    duration = 3
+
+                if drone.location.global_relative_frame.alt <= 5:
+                    mov_inc = 0.05  # make smaller adjustments as we get closer to target
+                    duration = 3
 
                 if dx < 0:  # left
                     # do what?  negative direction...
-                    pass  # (REMOVE 'pass' when you have supplied actual code)
+                    x_movement = -mov_inc
                 if dx > 0:  # right
                     # do what?  positive direction...
-                    pass
+                    x_movement = mov_inc
                 if dy < 0:  # back
                     # do what?  positive direction...
-                    pass
+                    y_movement = mov_inc
                 if dy > 0:  # forward
                     # do what?  negative direction...
-                    pass
+                    y_movement = -mov_inc
                 if abs(dx) < 7:  # if we are within 8 pixels, no need to make adjustment
                     x_movement = 0.0
                     direction1 = "Horizontal Center!"
@@ -474,10 +480,10 @@ def determine_drone_actions(target_point, frame, target_sightings):
                 #  out line of code below to get drone to make minor adjustment to current X,Y position while
                 #  descending at z_inc m/s
 
-                drone_lib.move_local(drone, x_movement, y_movement, z_inc, log=None)
+                drone_lib.move_local(drone, x_movement, y_movement, z_inc, log=log, duration=duration)
 
                 #  Wait for maneuver to complete...
-                time.sleep(1)
+                time.sleep(duration)
 
             else:  # We lost the target...
 
@@ -507,8 +513,15 @@ def determine_drone_actions(target_point, frame, target_sightings):
                     #   the target was originally spotted (don't forget to pass the log object)
                     #   2. perform RANDOM yaw here for a different vantage point than before
                     drone_lib.goto_point(drone, last_obj_lat, last_obj_lon, drone.airspeed, last_obj_alt, log=log)
-                    heading = random.randint(0, 360)
-                    drone_lib.condition_yaw(drone, heading, log=log)
+                    currHead = drone.heading
+                    heading = random.randint(currHead-45, currHead+45)
+                    if heading < 0:
+                        heading += 360
+                    elif heading > 360:
+                        heading -= 360
+
+                    # drone_lib.condition_yaw(drone, heading, log=log)
+
 
                 else:
                     # if we failed to re-locate the target,
@@ -620,7 +633,7 @@ def search_for_target():
                    10, (255, 0, 0), -1)
 
         # Now, show stats for informational purposes only
-        cv2.imshow("Real-time Detect", frame)
+        # cv2.imshow("Real-time Detect", frame)
         time.sleep(.1)
         key = cv2.waitKey(1) & 0xFF
 
