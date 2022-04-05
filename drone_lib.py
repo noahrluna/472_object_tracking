@@ -179,7 +179,7 @@ def send_body_frame_velocities(device, forward, right, velocity_z, duration=1):
     msg = device.message_factory.set_position_target_local_ned_encode(
         0,  # time_boot_ms (not used)
         0, 0,  # target system, target component
-        mavutil.mavlink.MAV_FRAME_BODY_NED,  # frame
+        mavutil.mavlink.MAV_FRAME_BODY_FRD,  # frame
         0b0000111111000111,  # type_mask (only speeds enabled)
         0,  # lat_int - X Position in WGS84 frame in 1e7 * meters
         0,  # lon_int - Y Position in WGS84 frame in 1e7 * meters
