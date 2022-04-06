@@ -1,13 +1,14 @@
 # Uncomment when using the realsense camera
-import pyrealsense2.pyrealsense2 as rs # For (most) Linux and Macs
-#import pyrealsense2 as rs  # For Windows
+# import pyrealsense2.pyrealsense2 as rs # For (most) Linux and Macs
+import math
+
+import pyrealsense2 as rs  # For Windows
 
 import numpy as np
 import logging
 import time
 import datetime
 import drone_lib
-#import fg_camera_sim
 import cv2
 import imutils
 import random
@@ -396,7 +397,9 @@ def determine_drone_actions(target_point, frame, target_sightings):
                     #   2. perform yaw to face in right direction here.
                     drone_lib.goto_point(drone, last_obj_lat, last_obj_lon, drone.airspeed, last_obj_alt,
                                          log=log)
+
                     drone_lib.condition_yaw(drone, last_obj_heading, log=log)
+
 
     # Execute drone commands...
     if mission_mode == MISSION_MODE_TARGET:
@@ -437,47 +440,40 @@ def determine_drone_actions(target_point, frame, target_sightings):
                 duration = 1
 
                 if drone.location.global_relative_frame.alt <= 20:
-                    mov_inc = 0.5     # make smaller adjustments as we get closer to target
+                    duration = 3     # make smaller adjustments as we get closer to target
 
-                if drone.location.global_relative_frame.alt <= 15:
-                    mov_inc = 0.2
+                if drone.location.global_relative_frame.alt <= 10:
                     duration = 2
 
-                if drone.location.global_relative_frame.alt <= 12:
-                    mov_inc = 0.15
-                    duration = 2
+                if drone.location.global_relative_frame.alt <= 5:
+                    duration = 1
 
-                if drone.location.global_relative_frame.alt <= 9:
-                    mov_inc = 0.1
-                    duration = 2
+                x_movement = float(dx/FRAME_HORIZONTAL_CENTER) * 0.5
+                y_movement = -1*float(dy/FRAME_VERTICAL_CENTER) * 0.5
 
-                if drone.location.global_relative_frame.alt <= 6:
-                    mov_inc = 0.05
-                    duration = 2
-
-                if dx < 0:  # move left
-                    # do what?  negative direction...
-                    x_movement = -mov_inc
-                if dx > 0:  # move right
-                    # do what?  positive direction...
-                    x_movement = mov_inc
-                if dy < 0:  # move back
-                    # do what?  negative direction...
-                    y_movement = mov_inc
-                if dy > 0:  # move forward
-                    # do what?  positive direction...
-                    y_movement = -mov_inc
-                if abs(dx) < 7:  # if we are within 8 pixels, no need to make adjustment
+                # if dx < 0:  # move left
+                #     # do what?  negative direction...
+                #     x_movement = -mov_inc
+                # if dx > 0:  # move right
+                #     # do what?  positive direction...
+                #     x_movement = mov_inc
+                # if dy < 0:  # move back
+                #     # do what?  negative direction...
+                #     y_movement = mov_inc
+                # if dy > 0:  # move forward
+                #     # do what?  positive direction...
+                #     y_movement = -mov_inc
+                if abs(dx) < 5:  # if we are within 8 pixels, no need to make adjustment
                     x_movement = 0.0
                     direction1 = "Horizontal Center!"
-                if abs(dy) < 7:  # if we are within 8 pixels, no need to make adjustment
+                if abs(dy) < 5:  # if we are within 8 pixels, no need to make adjustment
                     y_movement = 0.0
                     direction2 = "Vertical Center!"
                 if abs(dx) > 200:
-                    duration += 1
+                    # duration += 1
                     z_inc = 0.0
                 if abs(dy) > 150:
-                    duration += 1
+                    # duration += 1
                     z_inc = 0.0
 
                 # log movements...
@@ -683,6 +679,7 @@ def main():
     log.info("Looking for mission to execute...")
     drone.commands.download()
     time.sleep(1)
+
 
     if drone.commands.count < 1:
         log.info("No mission to execute.")
