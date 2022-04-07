@@ -435,7 +435,7 @@ def determine_drone_actions(target_point, frame, target_sightings):
                 #    Also, determine rate of decent.
                 #    (could be fixed to .5 m/s or you could vary the rate, depending on alt)
 
-                mov_inc = 1.0  # rate for x,y movements
+                # mov_inc = 1.0  # rate for x,y movements
                 z_inc = 0.5  # rate to descend
                 duration = 1
 
