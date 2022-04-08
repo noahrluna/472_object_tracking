@@ -57,7 +57,7 @@ COLOR_RANGE_MAX_2 = np.array([179, 255, 255])
 # Smallest object radius to consider (in pixels)
 MIN_OBJ_RADIUS = 10
 
-UPDATE_RATE = 2  # How many frames do we wait to execute on.
+UPDATE_RATE = 1   # How many frames do we wait to execute on.
 
 TARGET_RADIUS_MULTI = 1.3  # 1.3 x the radius of the target is considered a "good" landing if drone is inside of it.
 
@@ -435,46 +435,47 @@ def determine_drone_actions(target_point, frame, target_sightings):
                 #    Also, determine rate of decent.
                 #    (could be fixed to .5 m/s or you could vary the rate, depending on alt)
 
-                # mov_inc = 1.0  # rate for x,y movements
-                z_inc = 0.5  # rate to descend
+                mov_inc = 1.0  # rate for x,y movements
+                z_inc = 0.0  # rate to descend
                 duration = 1
 
-                if drone.location.global_relative_frame.alt <= 20:
-                    duration = 3     # make smaller adjustments as we get closer to target
+                if drone.location.global_relative_frame.alt <= 15:
+                    mov_inc = 0.5
 
-                if drone.location.global_relative_frame.alt <= 10:
-                    duration = 2
+                if drone.location.global_relative_frame.alt <= 9:
+                    mov_inc = 0.3
 
-                if drone.location.global_relative_frame.alt <= 5:
-                    duration = 1
+                x_movement = float(dx/FRAME_HORIZONTAL_CENTER) * mov_inc
+                y_movement = -1*float(dy/FRAME_VERTICAL_CENTER) * mov_inc
 
-                x_movement = float(dx/FRAME_HORIZONTAL_CENTER) * 0.5
-                y_movement = -1*float(dy/FRAME_VERTICAL_CENTER) * 0.5
-
-                # if dx < 0:  # move left
-                #     # do what?  negative direction...
-                #     x_movement = -mov_inc
-                # if dx > 0:  # move right
-                #     # do what?  positive direction...
-                #     x_movement = mov_inc
-                # if dy < 0:  # move back
-                #     # do what?  negative direction...
-                #     y_movement = mov_inc
-                # if dy > 0:  # move forward
-                #     # do what?  positive direction...
-                #     y_movement = -mov_inc
-                if abs(dx) < 5:  # if we are within 8 pixels, no need to make adjustment
+                if dx < 0:  # move left
+                    #     # do what?  negative direction...
+                    #     x_movement = -mov_inc
+                    direction1 = "Move Left"
+                if dx > 0:  # move right
+                    #     # do what?  positive direction...
+                    #     x_movement = mov_inc
+                    direction1 = "Move Right"
+                if dy < 0:  # move back
+                    #     # do what?  negative direction...
+                    #     y_movement = mov_inc
+                    direction2 = "Move Back"
+                if dy > 0:  # move forward
+                    #     # do what?  positive direction...
+                    #     y_movement = -mov_inc
+                    direction2 = "Move Forward"
+                if abs(dx) < 10:  # if we are within 10 pixels, no need to make adjustment
                     x_movement = 0.0
                     direction1 = "Horizontal Center!"
-                if abs(dy) < 5:  # if we are within 8 pixels, no need to make adjustment
+                if abs(dy) < 10:  # if we are within 10 pixels, no need to make adjustment
                     y_movement = 0.0
                     direction2 = "Vertical Center!"
-                if abs(dx) > 200:
-                    # duration += 1
-                    z_inc = 0.0
-                if abs(dy) > 150:
-                    # duration += 1
-                    z_inc = 0.0
+                if abs(dx) < 20 and abs(dy) < 20:
+                    z_inc = 0.3
+                    if abs(dx) < 10 and abs(dy) < 10:
+                        z_inc = 1.0
+                        x_movement = 0.0
+                        y_movement = 0.0
 
                 # log movements...
                 logging.info("Targeting... determined changes in velocities: X: "
@@ -548,6 +549,17 @@ def determine_drone_actions(target_point, frame, target_sightings):
                     #    so as to resume the drone's internal mission
                     #    (don't forget to pass the log object)
                     drone_lib.change_device_mode(drone, "AUTO", log=log)
+    if target_point is None:
+        # if we failed to re-locate the target,
+        # then continue on with the drone's internal mission...
+        logging.info("Discarding previous target, continue looking for another...")
+        mission_mode = MISSION_MODE_SEEK
+        target_locate_attempts = 0
+        last_obj_lon = None
+        last_obj_lat = None
+        last_obj_alt = None
+        last_obj_heading = None
+        drone_lib.change_device_mode(drone, "AUTO", log=log)
 
 
 def search_for_target():
