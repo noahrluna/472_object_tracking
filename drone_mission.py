@@ -1,9 +1,8 @@
 # Uncomment when using the realsense camera
 # import pyrealsense2.pyrealsense2 as rs # For (most) Linux and Macs
-import math
-
 import pyrealsense2 as rs  # For Windows
 
+import math
 import numpy as np
 import logging
 import time
@@ -524,12 +523,7 @@ def determine_drone_actions(target_point, frame, target_sightings):
                     #   the target was originally spotted (don't forget to pass the log object)
                     #   2. perform RANDOM yaw here for a different vantage point than before
                     drone_lib.goto_point(drone, last_obj_lat, last_obj_lon, drone.airspeed, last_obj_alt, log=log)
-                    currHead = drone.heading
-                    heading = random.randint(currHead-60, currHead+60)
-                    if heading < 0:
-                        heading += 360
-                    elif heading > 360:
-                        heading -= 360
+                    heading = random.randint(0, 360)
                     drone_lib.condition_yaw(drone, heading, log=log)
 
 
